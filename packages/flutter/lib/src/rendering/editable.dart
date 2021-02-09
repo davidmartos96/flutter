@@ -1563,6 +1563,8 @@ class RenderEditable extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
     _longPress = LongPressGestureRecognizer(debugOwner: this)..onLongPress = _handleLongPress;
     _offset.addListener(markNeedsPaint);
     _showCursor.addListener(markNeedsPaint);
+    if (_listenerAttached)
+      RawKeyboard.instance.addListener(_handleKeyEvent);
   }
 
   @override
