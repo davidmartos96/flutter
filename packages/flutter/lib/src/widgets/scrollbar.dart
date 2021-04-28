@@ -990,8 +990,9 @@ class RawScrollbarState<T extends RawScrollbar> extends State<T> with TickerProv
   @mustCallSuper
   void handleThumbPressEnd(Offset localPosition, Velocity velocity) {
     final Axis? direction = getScrollbarDirection();
-    if (direction == null)
+    if (direction == null) {
       return;
+    }
     _maybeStartFadeoutTimer();
     _dragScrollbarAxisPosition = null;
     _currentController = null;
@@ -1001,8 +1002,9 @@ class RawScrollbarState<T extends RawScrollbar> extends State<T> with TickerProv
     // The Scrollbar should page towards the position of the tap on the track.
     _currentController = widget.controller ?? PrimaryScrollController.of(context);
     final Axis? direction = getScrollbarDirection();
-    if (direction == null)
+    if (direction == null) {
       return;
+    }
 
     double scrollIncrement;
     // Is an increment calculator available?
