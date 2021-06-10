@@ -170,6 +170,9 @@ class CupertinoAlertDialog extends StatelessWidget {
   ///    section when there are many actions.
   final ScrollController? scrollController;
 
+  ScrollController get _effectiveScrollController =>
+    scrollController ?? ScrollController();
+
   /// A scroll controller that can be used to control the scrolling of the
   /// actions in the dialog.
   ///
@@ -180,6 +183,9 @@ class CupertinoAlertDialog extends StatelessWidget {
   ///  * [scrollController], which can be used for controlling the [content]
   ///    section when it is long.
   final ScrollController? actionScrollController;
+
+  ScrollController get _effectiveActionScrollController =>
+    actionScrollController ?? ScrollController();
 
   /// {@macro flutter.material.dialog.insetAnimationDuration}
   final Duration insetAnimationDuration;
@@ -195,7 +201,7 @@ class CupertinoAlertDialog extends StatelessWidget {
           child: _CupertinoAlertContentSection(
             title: title,
             content: content,
-            scrollController: scrollController,
+            scrollController: _effectiveScrollController,
           ),
         ),
     ];
@@ -217,7 +223,7 @@ class CupertinoAlertDialog extends StatelessWidget {
     if (actions.isNotEmpty) {
       actionSection = _CupertinoAlertActionSection(
         children: actions,
-        scrollController: actionScrollController,
+        scrollController: _effectiveActionScrollController,
       );
     }
 
@@ -880,6 +886,7 @@ class _CupertinoAlertContentSection extends StatelessWidget {
     ];
 
     return CupertinoScrollbar(
+      controller: scrollController,
       child: SingleChildScrollView(
         controller: scrollController,
         child: Column(
@@ -932,6 +939,7 @@ class _CupertinoAlertActionSectionState extends State<_CupertinoAlertActionSecti
     }
 
     return CupertinoScrollbar(
+      controller: widget.scrollController,
       child: SingleChildScrollView(
         controller: widget.scrollController,
         child: _CupertinoDialogActionsRenderWidget(
