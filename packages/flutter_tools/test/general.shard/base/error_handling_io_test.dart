@@ -39,23 +39,6 @@ final Platform macOSPlatform = FakePlatform(
   environment: <String, String>{}
 );
 
-void setupReadMocks({
-  FileSystem mockFileSystem,
-  ErrorHandlingFileSystem fs,
-  int errorCode,
-}) {
-  final MockFile mockFile = MockFile();
-  final MockDirectory mockParentDirectory = MockDirectory();
-  when(mockFileSystem.file(any)).thenReturn(mockFile);
-  when(mockFile.path).thenReturn('parent/file');
-  when(mockFile.parent).thenReturn(mockParentDirectory);
-  when(mockParentDirectory.path).thenReturn('parent');
-  when(mockFileSystem.currentDirectory).thenThrow(FileSystemException('', '', OSError('', errorCode)));
-  when(mockFile.readAsStringSync(
-    encoding: anyNamed('encoding'),
-  )).thenThrow(FileSystemException('', '', OSError('', errorCode)));
-}
-
 void setupDirectoryMocks({
   FileSystem mockFileSystem,
   ErrorHandlingFileSystem fs,
@@ -367,19 +350,31 @@ void main() {
              throwsToolExit(message: expectedMessage));
     });
 
-    testWithoutContext('When reading from a file or directory without permission', () {
-      setupReadMocks(
-        mockFileSystem: mockFileSystem,
-        fs: fs,
-        errorCode: kUserPermissionDenied,
+    testWithoutContext('When reading from a file without permission', () {
+       final ErrorHandlingFileSystem fileSystem = ErrorHandlingFileSystem(
+        delegate: MemoryFileSystem.test(opHandle: exceptionHandler.opHandle),
+        platform: windowsPlatform,
       );
+      final File file = fileSystem.file('file');
 
-      final File file = fs.file('file');
+      exceptionHandler.addError(
+        file,
+        FileSystemOp.read,
+        FileSystemException('', file.path, const OSError('', kUserPermissionDenied)),
+      );
 
       const String expectedMessage = 'Flutter failed to read a file at';
       expect(() => file.readAsStringSync(),
              throwsToolExit(message: expectedMessage));
-      expect(() => fs.currentDirectory,
+    });
+
+    testWithoutContext('When reading from a file or directory without permission', () {
+       final ErrorHandlingFileSystem fileSystem = ErrorHandlingFileSystem(
+        delegate: ThrowsOnCurrentDirectoryFileSystem()..errorCode = kUserPermissionDenied,
+        platform: windowsPlatform,
+      );
+
+      expect(() => fileSystem.currentDirectory,
              throwsToolExit(message: 'The flutter tool cannot access the file or directory'));
     });
   });
@@ -563,16 +558,29 @@ void main() {
     });
 
     testWithoutContext('When the current working directory disappears', () async {
-      setupReadMocks(
-        mockFileSystem: mockFileSystem,
-        fs: fs,
-        errorCode: kSystemCannotFindFile,
+     final ErrorHandlingFileSystem fileSystem = ErrorHandlingFileSystem(
+        delegate: ThrowsOnCurrentDirectoryFileSystem()..errorCode = kSystemCannotFindFile,
+        platform: linuxPlatform,
       );
 
-      expect(() => fs.currentDirectory, throwsToolExit(message: 'Unable to read current working directory'));
+      expect(() => fileSystem.currentDirectory, throwsToolExit(message: 'Unable to read current working directory'));
+    });
+
+    testWithoutContext('Rethrows os error $kSystemCannotFindFile', () {
+       final ErrorHandlingFileSystem fileSystem = ErrorHandlingFileSystem(
+        delegate: MemoryFileSystem.test(opHandle: exceptionHandler.opHandle),
+        platform: linuxPlatform,
+      );
+      final File file = fileSystem.file('file');
+
+      exceptionHandler.addError(
+        file,
+        FileSystemOp.read,
+        FileSystemException('', file.path, const OSError('', kSystemCannotFindFile)),
+      );
 
       // Error is not caught by other operations.
-      expect(() => fs.file('foo').readAsStringSync(), throwsFileSystemException(kSystemCannotFindFile));
+      expect(() => fileSystem.file('foo').readAsStringSync(), throwsFileSystemException(kSystemCannotFindFile));
     });
   });
 
@@ -753,19 +761,31 @@ void main() {
              throwsToolExit(message: expectedMessage));
     });
 
-    testWithoutContext('When reading from a file or directory without permission', () {
-      setupReadMocks(
-        mockFileSystem: mockFileSystem,
-        fs: fs,
-        errorCode: eacces,
+    testWithoutContext('When reading from a file without permission', () {
+       final ErrorHandlingFileSystem fileSystem = ErrorHandlingFileSystem(
+        delegate: MemoryFileSystem.test(opHandle: exceptionHandler.opHandle),
+        platform: linuxPlatform,
       );
+      final File file = fileSystem.file('file');
 
-      final File file = fs.file('file');
+      exceptionHandler.addError(
+        file,
+        FileSystemOp.read,
+        FileSystemException('', file.path, const OSError('', eacces)),
+      );
 
       const String expectedMessage = 'Flutter failed to read a file at';
       expect(() => file.readAsStringSync(),
              throwsToolExit(message: expectedMessage));
-      expect(() => fs.currentDirectory,
+    });
+
+    testWithoutContext('When reading from current directory without permission', () {
+     final ErrorHandlingFileSystem fileSystem = ErrorHandlingFileSystem(
+        delegate: ThrowsOnCurrentDirectoryFileSystem()..errorCode = eacces,
+        platform: linuxPlatform,
+      );
+
+      expect(() => fileSystem.currentDirectory,
              throwsToolExit(message: 'The flutter tool cannot access the file or directory'));
     });
   });
@@ -798,44 +818,39 @@ void main() {
 
   group('toString() gives toString() of delegate', () {
     testWithoutContext('ErrorHandlingFileSystem', () {
-      final MockFileSystem mockFileSystem = MockFileSystem();
+      final MemoryFileSystem delegate = MemoryFileSystem.test();
       final FileSystem fs = ErrorHandlingFileSystem(
-        delegate: mockFileSystem,
+        delegate: delegate,
         platform: const LocalPlatform(),
       );
 
-      expect(mockFileSystem.toString(), isNotNull);
-      expect(fs.toString(), equals(mockFileSystem.toString()));
+      expect(delegate.toString(), isNotNull);
+      expect(fs.toString(), delegate.toString());
     });
 
     testWithoutContext('ErrorHandlingFile', () {
-      final MockFileSystem mockFileSystem = MockFileSystem();
+      final MemoryFileSystem delegate = MemoryFileSystem.test();
       final FileSystem fs = ErrorHandlingFileSystem(
-        delegate: mockFileSystem,
+        delegate: delegate,
         platform: const LocalPlatform(),
       );
-      final MockFile mockFile = MockFile();
-      when(mockFileSystem.file(any)).thenReturn(mockFile);
+      final File file = delegate.file('file');
 
-      expect(mockFile.toString(), isNotNull);
-      expect(fs.file('file').toString(), equals(mockFile.toString()));
+      expect(file.toString(), isNotNull);
+      expect(fs.file('file').toString(), file.toString());
     });
 
     testWithoutContext('ErrorHandlingDirectory', () {
-      final MockFileSystem mockFileSystem = MockFileSystem();
+      final MemoryFileSystem delegate = MemoryFileSystem.test();
       final FileSystem fs = ErrorHandlingFileSystem(
-        delegate: mockFileSystem,
+        delegate: delegate,
         platform: const LocalPlatform(),
       );
-      final MockDirectory mockDirectory = MockDirectory();
-      when(mockFileSystem.directory(any)).thenReturn(mockDirectory);
+      final Directory directory = delegate.directory('directory')..createSync();
+      expect(fs.directory('directory').toString(), directory.toString());
+      delegate.currentDirectory = directory;
 
-      expect(mockDirectory.toString(), isNotNull);
-      expect(fs.directory('directory').toString(), equals(mockDirectory.toString()));
-
-      when(mockFileSystem.currentDirectory).thenReturn(mockDirectory);
-
-      expect(fs.currentDirectory.toString(), equals(mockDirectory.toString()));
+      expect(fs.currentDirectory.toString(), delegate.currentDirectory.toString());
       expect(fs.currentDirectory, isA<ErrorHandlingDirectory>());
     });
   });
@@ -1254,4 +1269,11 @@ class ThrowingFakeProcessManager extends Fake implements ProcessManager {
   bool canRun(dynamic executable, {String workingDirectory}) {
     throw _exception;
   }
+}
+
+class ThrowsOnCurrentDirectoryFileSystem extends Fake implements FileSystem {
+  int errorCode;
+
+  @override
+  Directory get currentDirectory => throw FileSystemException('', '', OSError('', errorCode));
 }

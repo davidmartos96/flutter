@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_gallery/demo_lists.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// The demos we don't run as part of the integraiton test.
+/// The demos we don't run as part of the integration test.
 ///
 /// Demo names are formatted as 'DEMO_NAME@DEMO_CATEGORY' (see
 /// `demo_lists.dart` for more examples).
@@ -49,10 +49,6 @@ Future<void> runDemos(List<String> demos, WidgetController controller) async {
     }
     currentDemoCategory = demoCategory;
 
-    final Finder demoItem = find.text(demoName);
-    await controller.scrollUntilVisible(demoItem, 48.0);
-    await controller.pumpAndSettle();
-
     Future<void> pageBack() {
       Finder backButton = find.byTooltip('Back');
       if (backButton.evaluate().isEmpty) {
@@ -62,7 +58,19 @@ Future<void> runDemos(List<String> demos, WidgetController controller) async {
     }
 
     for (int i = 0; i < 2; i += 1) {
-      await controller.tap(demoItem); // Launch the demo
+      final Finder demoItem = find.text(demoName);
+      await controller.scrollUntilVisible(demoItem, 48.0);
+      await controller.pumpAndSettle();
+      try {
+        await controller.tap(demoItem); // Launch the demo
+      } catch (e) {
+        print('Failed to find $demoItem');
+        print('All available elements:');
+        print(controller.allElements.toList());
+        print('App structure:');
+        debugDumpApp();
+        rethrow;
+      }
 
       if (kUnsynchronizedDemos.contains(demo)) {
         // These tests have animation, pumpAndSettle cannot be used.
