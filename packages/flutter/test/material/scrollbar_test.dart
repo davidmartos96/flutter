@@ -128,7 +128,7 @@ void main() {
       of: find.byType(Scrollbar),
       matching: find.byType(CustomPaint),
     ).first);
-    final dynamic scrollPainter = custom.foregroundPainter;
+    final ScrollbarPainter? scrollPainter = custom.foregroundPainter as ScrollbarPainter?;
     // Dragging makes the scrollbar first appear.
     await tester.drag(find.text('0'), const Offset(0.0, -10.0));
     await tester.pump(const Duration(milliseconds: 200));
@@ -141,7 +141,7 @@ void main() {
       viewportDimension: 100.0,
       axisDirection: AxisDirection.down,
     );
-    scrollPainter.update(metrics, AxisDirection.down);
+    scrollPainter!.update(metrics, AxisDirection.down);
 
     final TestCanvas canvas = TestCanvas();
     scrollPainter.paint(canvas, const Size(10.0, 100.0));
@@ -152,53 +152,55 @@ void main() {
 
   testWidgets('When isAlwaysShown is true, must pass a controller or find PrimaryScrollController',
       (WidgetTester tester) async {
-    Widget viewWithScroll() {
-      return _buildBoilerplate(
-        child: Theme(
-          data: ThemeData(),
-          child: const Scrollbar(
-            isAlwaysShown: true,
-            child: SingleChildScrollView(
-              child: SizedBox(
-                width: 4000.0,
-                height: 4000.0,
+      Widget viewWithScroll() {
+        return _buildBoilerplate(
+          child: Theme(
+            data: ThemeData(),
+            child: const Scrollbar(
+              isAlwaysShown: true,
+              child: SingleChildScrollView(
+                child: SizedBox(
+                  width: 4000.0,
+                  height: 4000.0,
+                ),
               ),
             ),
           ),
-        ),
-      );
-    }
+        );
+      }
 
-    await tester.pumpWidget(viewWithScroll());
-    final dynamic exception = tester.takeException();
-    expect(exception, isAssertionError);
-  });
+      await tester.pumpWidget(viewWithScroll());
+      final AssertionError exception = tester.takeException() as AssertionError;
+      expect(exception, isAssertionError);
+    },
+  );
 
   testWidgets('When isAlwaysShown is true, must pass a controller that is attached to a scroll view or find PrimaryScrollController',
       (WidgetTester tester) async {
-    final ScrollController controller = ScrollController();
-    Widget viewWithScroll() {
-      return _buildBoilerplate(
-        child: Theme(
-          data: ThemeData(),
-          child: Scrollbar(
-            isAlwaysShown: true,
-            controller: controller,
-            child: const SingleChildScrollView(
-              child: SizedBox(
-                width: 4000.0,
-                height: 4000.0,
+      final ScrollController controller = ScrollController();
+      Widget viewWithScroll() {
+        return _buildBoilerplate(
+          child: Theme(
+            data: ThemeData(),
+            child: Scrollbar(
+              isAlwaysShown: true,
+              controller: controller,
+              child: const SingleChildScrollView(
+                child: SizedBox(
+                  width: 4000.0,
+                  height: 4000.0,
+                ),
               ),
             ),
           ),
-        ),
-      );
-    }
+        );
+      }
 
-    await tester.pumpWidget(viewWithScroll());
-    final dynamic exception = tester.takeException();
-    expect(exception, isAssertionError);
-  });
+      await tester.pumpWidget(viewWithScroll());
+      final AssertionError exception = tester.takeException() as AssertionError;
+      expect(exception, isAssertionError);
+    },
+  );
 
   testWidgets('On first render with isAlwaysShown: true, the thumb shows',
       (WidgetTester tester) async {
