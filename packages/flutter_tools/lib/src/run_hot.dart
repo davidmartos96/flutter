@@ -577,7 +577,10 @@ class HotRunner extends ResidentRunner {
   }) async {
     final Stopwatch restartTimer = Stopwatch()..start();
 
-    await performPreHotRestart();
+    final OperationResult preHotRestartResult = await performPreHotRestart();
+    if (!preHotRestartResult.isOk) {
+      return preHotRestartResult;
+    }
 
     UpdateFSReport updatedDevFS;
     try {

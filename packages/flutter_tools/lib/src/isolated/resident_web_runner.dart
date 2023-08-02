@@ -382,7 +382,10 @@ Please provide a valid TCP port (an integer between 0 and 65535, inclusive).
     if (debuggingOptions.buildInfo.isDebug) {
       await runSourceGenerators();
 
-      await performPreHotRestart();
+      final OperationResult preHotRestartResult = await performPreHotRestart();
+      if (!preHotRestartResult.isOk) {
+        return preHotRestartResult;
+      }
 
       // Full restart is always false for web, since the extra recompile is wasteful.
       final UpdateFSReport report = await _updateDevFS();

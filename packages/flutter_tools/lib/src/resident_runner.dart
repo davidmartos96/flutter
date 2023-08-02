@@ -1155,6 +1155,8 @@ abstract class ResidentRunner extends ResidentHandlers {
   BuildResult? _lastBuild;
   Environment? _environment;
 
+  Completer<void>? _preHotReloadCallbacksCompleter;
+
   @override
   bool hotMode;
 
@@ -1503,7 +1505,20 @@ abstract class ResidentRunner extends ResidentHandlers {
   }
 
   @protected
-  Future<void> performPreHotRestart() async {
+  Future<OperationResult> performPreHotRestart() async {
+    if (_preHotReloadCallbacksCompleter != null) {
+      // Pre hot restart callbacks are already running, so abort previous
+      // callbacks and skip them in this current restart.
+      _preHotReloadCallbacksCompleter!.completeError(_AbortPreHotRestartCallbacksException());
+      _preHotReloadCallbacksCompleter = null;
+
+      // Pre hot restart callbacks were still running, forcing a hot restart without calling them.
+      return OperationResult.ok;
+    }
+
+    _preHotReloadCallbacksCompleter = Completer<void>();
+    final Completer<void> currentCompleter = _preHotReloadCallbacksCompleter!;
+
     final Timer slowCallbackTimer = Timer(const Duration(seconds: 5), () async {
       globals.printError('preHotRestartCallbacks are taking longer than expected...');
     });
@@ -1530,8 +1545,25 @@ abstract class ResidentRunner extends ResidentHandlers {
         ));
       }
     }
-    await Future.wait(preHotRestartFutures);
-    slowCallbackTimer.cancel();
+
+    try {
+      unawaited(Future.wait(preHotRestartFutures).then((_) {
+        // Make sure we are using the correct completer in case aborted
+        // prehot restart callbacks end up finishing at a later time.
+        if (currentCompleter == _preHotReloadCallbacksCompleter) {
+          _preHotReloadCallbacksCompleter!.complete();
+        }
+      }));
+
+      await _preHotReloadCallbacksCompleter!.future;
+      return OperationResult.ok;
+    } on _AbortPreHotRestartCallbacksException catch (_) {
+      globals.printWarning('Running pre hot restart callbacks were aborted because of a new hot restart.');
+      return OperationResult(1, 'Aborted pre hot restart callbacks');
+    } finally {
+      _preHotReloadCallbacksCompleter = null;
+      slowCallbackTimer.cancel();
+    }
   }
 
   @protected
@@ -1880,10 +1912,12 @@ class TerminalHandler {
     return false;
   }
 
+  static const Set<String> _commandsWhichCanRunParallel = <String>{'R'};
+
   Future<void> processTerminalInput(String command) async {
     // When terminal doesn't support line mode, '\n' can sneak into the input.
     command = command.trim();
-    if (_processingUserRequest) {
+    if (_processingUserRequest && !_commandsWhichCanRunParallel.contains(command)) {
       _logger.printTrace('Ignoring terminal input: "$command" because we are busy.');
       return;
     }
@@ -2026,3 +2060,5 @@ class DevToolsServerAddress {
     return Uri(scheme: 'http', host: host, port: port);
   }
 }
+
+class _AbortPreHotRestartCallbacksException {}
