@@ -790,7 +790,7 @@ void main() {
       await tester.pump();
       expect(tester.binding.focusManager.primaryFocus, isNot(equals(child2)));
       expect(tester.binding.focusManager.primaryFocus, isNot(equals(child1)));
-      expect(scope.focusedChild, equals(child1));
+      expect(scope.focusedChild, isNull);
       expect(scope.traversalDescendants.contains(child1), isFalse);
       expect(scope.traversalDescendants.contains(child2), isFalse);
       expect(scope.traversalChildren.contains(parent1), isFalse);
@@ -1074,7 +1074,7 @@ void main() {
       await tester.pump();
       scope1.unfocus(disposition: UnfocusDisposition.previouslyFocusedChild);
       await tester.pump();
-      expect(scope1.focusedChild, equals(child1));
+      expect(scope1.focusedChild, isNull);
       expect(scope2.focusedChild, equals(child3));
       expect(scope1.hasFocus, isFalse);
       expect(scope2.hasFocus, isTrue);
@@ -1166,7 +1166,7 @@ void main() {
       await tester.pump();
       scope1.unfocus();
       await tester.pump();
-      expect(scope1.focusedChild, equals(child1));
+      expect(scope1.focusedChild, isNull);
       expect(scope2.focusedChild, equals(child3));
       expect(scope1.hasFocus, isFalse);
       expect(scope2.hasFocus, isFalse);
@@ -1224,14 +1224,14 @@ void main() {
       scope1.canRequestFocus = false;
       await tester.pump();
 
-      expect(scope1.focusedChild, equals(child1));
+      expect(scope1.focusedChild, isNull);
       expect(scope2.focusedChild, equals(child3));
       expect(child3.hasPrimaryFocus, isTrue);
 
       child1.unfocus();
       await tester.pump();
       expect(child3.hasPrimaryFocus, isTrue);
-      expect(scope1.focusedChild, equals(child1));
+      expect(scope1.focusedChild, isNull);
       expect(scope2.focusedChild, equals(child3));
       expect(scope1.hasPrimaryFocus, isFalse);
       expect(scope2.hasFocus, isTrue);
@@ -1241,7 +1241,7 @@ void main() {
       child1.unfocus(disposition: UnfocusDisposition.previouslyFocusedChild);
       await tester.pump();
       expect(child3.hasPrimaryFocus, isTrue);
-      expect(scope1.focusedChild, equals(child1));
+      expect(scope1.focusedChild, isNull);
       expect(scope2.focusedChild, equals(child3));
       expect(scope1.hasPrimaryFocus, isFalse);
       expect(scope2.hasFocus, isTrue);
@@ -2225,6 +2225,26 @@ void main() {
       debugFocusChanges = oldDebugFocusChanges;
       debugPrint = oldDebugPrint;
     }
+  });
+
+  testWidgets('After calling unfocus on FocusScopeNode, it should not refocus on the child when refocused.', (WidgetTester tester) async {
+    final BuildContext context = await setupWidget(tester);
+    final FocusScopeNode parent = FocusScopeNode();
+    addTearDown(parent.dispose);
+    final FocusAttachment parentAttachment = parent.attach(context);
+    final FocusNode child1 = FocusNode();
+    addTearDown(child1.dispose);
+    final FocusAttachment child1Attachment = child1.attach(context);
+    parentAttachment.reparent(parent: tester.binding.focusManager.rootScope);
+    child1Attachment.reparent(parent: parent);
+    child1.requestFocus();
+    await tester.pump();
+    expect(parent.focusedChild, equals(child1));
+    parent.unfocus();
+    await tester.pump();
+    parent.requestFocus();
+    await tester.pump();
+    expect(parent.focusedChild, isNull);
   });
 }
 
