@@ -44,7 +44,13 @@ import 'page_transitions_theme.dart';
 class PredictiveBackPageTransitionsBuilder extends PageTransitionsBuilder {
   /// Creates an instance of a [PageTransitionsBuilder] that matches Android U's
   /// predictive back transition.
-  const PredictiveBackPageTransitionsBuilder();
+  const PredictiveBackPageTransitionsBuilder({this.backGestureEnabledPredicate});
+
+  /// Whether the predictive back gesture should be enabled for a given route.
+  /// The user might want to disable some routes from predictive back gestures, usually when using
+  /// multiple Navigators. Otherwise the gesture could pop a route that is not currently visible, like when using
+  /// multiple Navigation tabs.
+  final PredictiveBackGestureEnabledPredicate? backGestureEnabledPredicate;
 
   @override
   Duration get transitionDuration =>
@@ -60,6 +66,7 @@ class PredictiveBackPageTransitionsBuilder extends PageTransitionsBuilder {
   ) {
     return _PredictiveBackGestureDetector(
       route: route,
+      backGestureEnabledPredicate: backGestureEnabledPredicate,
       builder:
           (
             BuildContext context,
@@ -125,7 +132,13 @@ class PredictiveBackPageTransitionsBuilder extends PageTransitionsBuilder {
 class PredictiveBackFullscreenPageTransitionsBuilder extends PageTransitionsBuilder {
   /// Creates an instance of a [PageTransitionsBuilder] that matches Android U's
   /// full screen predictive back transition.
-  const PredictiveBackFullscreenPageTransitionsBuilder();
+  const PredictiveBackFullscreenPageTransitionsBuilder({this.backGestureEnabledPredicate});
+
+  /// Whether the predictive back gesture should be enabled for a given route.
+  /// The user might want to disable some routes from predictive back gestures, usually when using
+  /// multiple Navigators. Otherwise the gesture could pop a route that is not currently visible, like when using
+  /// multiple Navigation tabs.
+  final PredictiveBackGestureEnabledPredicate? backGestureEnabledPredicate;
 
   @override
   Widget buildTransitions<T>(
@@ -137,6 +150,7 @@ class PredictiveBackFullscreenPageTransitionsBuilder extends PageTransitionsBuil
   ) {
     return _PredictiveBackGestureDetector(
       route: route,
+      backGestureEnabledPredicate: backGestureEnabledPredicate,
       builder:
           (
             BuildContext context,
@@ -177,6 +191,10 @@ typedef _PredictiveBackGestureDetectorWidgetBuilder =
       PredictiveBackEvent? currentBackEvent,
     );
 
+/// Whether the predictive back gesture should be enabled for a given route.
+typedef PredictiveBackGestureEnabledPredicate =
+    bool Function(BuildContext context, PageRoute<dynamic> route);
+
 /// The phases of a predictive back gesture.
 enum _PredictiveBackPhase {
   /// There is no active predictive back gesture in progress.
@@ -200,10 +218,15 @@ enum _PredictiveBackPhase {
 }
 
 class _PredictiveBackGestureDetector extends StatefulWidget {
-  const _PredictiveBackGestureDetector({required this.route, required this.builder});
+  const _PredictiveBackGestureDetector({
+    required this.route,
+    required this.builder,
+    this.backGestureEnabledPredicate,
+  });
 
   final _PredictiveBackGestureDetectorWidgetBuilder builder;
   final PageRoute<dynamic> route;
+  final PredictiveBackGestureEnabledPredicate? backGestureEnabledPredicate;
 
   @override
   State<_PredictiveBackGestureDetector> createState() => _PredictiveBackGestureDetectorState();
@@ -213,7 +236,11 @@ class _PredictiveBackGestureDetectorState extends State<_PredictiveBackGestureDe
     with WidgetsBindingObserver {
   /// True when the predictive back gesture is enabled.
   bool get _isEnabled {
-    return widget.route.isCurrent && widget.route.popGestureEnabled;
+    return widget.route.isCurrent &&
+        widget.route.popGestureEnabled &&
+        // The user might want to disable some routes from predictive back gestures in addition
+        // to the other conditions above.
+        (widget.backGestureEnabledPredicate?.call(context, widget.route) ?? true);
   }
 
   _PredictiveBackPhase get phase => _phase;
